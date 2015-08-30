@@ -25,3 +25,7 @@ Simply clone the package using:
 `$ git clone https://github.com/jexah/solidifyr.git`
 Then change to the root directory of the project and update to install dependencies:
 `$ cd solidifyr && npm install`
+
+## Run
+Simply run using grunt:
+`$ grunt`
