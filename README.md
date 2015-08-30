@@ -17,6 +17,8 @@ Features are very infrequently removed from APIs, due to apps being build on top
 
 Only publish the most recent code that passes all of the unit tests. This requires substancial unit tests. To make unit testing easier, we pair unit tests with functions, so they are easy to edit side by side.
 
+### Secondary goals
+Implement a wiki-style page for each node where any useful information can be stored, such as details on how to use a function, or current known technical limitations or issues that explain why the function is built the way it is (seperate from "issues" that would list why a function isn't operating correctly). [Basically a nicer version of "summaries" in traditional IDEs]
 
 ## Build
 Simply clone the package using:
