@@ -2,6 +2,11 @@
   "name": "solidifyr",
   "version": "0.0.1",
   "author": "Jeremy Short",
+  "description": "Modern object-oriented development environment hosted on the cloud.",
+  "repository" : {
+    "type": "git",
+    "url": "https://github.com/jexah/solidifyr.git"
+  },
   "dependencies": {
     "express": "^4.13.3",
     "jade": "^1.11.0",

@@ -1,5 +1,5 @@
 # Solidifyr
-### Modern object-oriented development environment hosted on the cloud.
+#### Modern object-oriented development environment hosted on the cloud.
 
 Designed with three core ideas in mind:
 * Create a new collaborative editing paradigm.
@@ -30,7 +30,9 @@ Implement a wiki-style page for each node where any useful information can be st
 
 ---
 
-## Build
+### Build
+*This assumes you have nodejs, npm, and grunt installed.*
+
 Simply clone the package using:
 
 `$ git clone https://github.com/jexah/solidifyr.git`
@@ -41,7 +43,9 @@ Then change to the root directory of the project and update to install dependenc
 
 ---
 
-## Run
+### Run
+*This assumes you have nodejs, npm, and grunt installed.*
+
 Simply run using grunt:
 
 `$ grunt`

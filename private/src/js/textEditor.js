@@ -10,10 +10,19 @@ app.controller('TextEditorController', function ($scope) {
 
 	function updateWatchers(){
 		while($scope.database.length > totalWatching){
-			console.log(totalWatching);
 			addWatcher(totalWatching++);
 		}
 	}
+
+	$scope.aceLoaded = function(editor) {
+		editor.setOptions({
+			maxLines: Infinity,
+			showPrintMargin: false
+		});
+		editor.renderer.setScrollMargin(20, 20, 20, 20);
+		editor.renderer.setPadding(20);
+		editor.container.style.lineHeight = '20px';
+	};
 
 	$scope.$watch('database.length', function(){
 		updateWatchers();
@@ -31,7 +40,6 @@ app.controller('TextEditorController', function ($scope) {
 				'parent': parentId
 			}
 		});
-		console.log('parentId:' + parentId);
 	};
 
 	$scope.delete = function(id){
@@ -50,7 +58,7 @@ app.controller('TextEditorController', function ($scope) {
 					'action':'put',
 					'value':$scope.database[id]
 				});
-				console.log($scope.database[id]);
+				console.log($scope.database[id].text);
 			}
 	 	}, true);
 	}
@@ -87,8 +95,6 @@ app.controller('TextEditorController', function ($scope) {
 					case 'delete':
 						unlinkObj(data.value.id);
 						$scope.$apply();
-						console.log(data.value.id);
-						console.log($scope.database[data.value.id]);
 						break;
 				}
 		}

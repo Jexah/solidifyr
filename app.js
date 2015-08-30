@@ -54,16 +54,44 @@ newProperty2.text = 'private int y = 0;';
 
 var newProperty3 = New('property', newClass.id);
 database.push(newProperty3);
-newProperty3.name = 'speed';
+newProperty3.name = 'Speed';
 newProperty3.text = 'private int speed = 5;';
+
+
+var newProperty4 = New('property', newClass.id);
+database.push(newProperty4);
+newProperty4.name = 'Direction Enum';
+newProperty4.text = 'private enum Direction = \n'+
+					'{\n'+
+					'	RIGHT,\n'+
+					'	UP,\n'+
+					'	LEFT,\n'+
+					'	DOWN\n'+
+					'}';
 
 var newMethod = New('method', newClass.id);
 database.push(newMethod);
 newMethod.name = 'Move';
 newMethod.text = 
-'public void move(Direction dir)'			+
-'{<br>' 										+
-'	switch(dir)\n= 5;';
+'public void move(Direction dir)\n'+
+'	switch(dir)\n'+
+'	{\n'+
+'		case RIGHT:\n'+
+'			this.x += this.speed;\n'+
+'			break;\n'+
+'		case UP:\n'+
+'			this.y += this.speed;\n'+
+'			break;\n'+
+'		case LEFT:\n'+
+'			this.x -= this.speed;\n'+
+'			break;\n'+
+'		case DOWN:\n'+
+'			this.y -= this.speed;\n'+
+'			break;\n'+
+'		default:\n'+
+'			break;\n'+
+'	}\n'+
+'}';
 
 
 
@@ -73,6 +101,7 @@ database[1].addChild(newMethod.id, 'method');
 database[1].addChild(newProperty.id, 'property');
 database[1].addChild(newProperty2.id, 'property');
 database[1].addChild(newProperty3.id, 'property');
+database[1].addChild(newProperty4.id, 'property');
 
 io.sockets.on('connection', function (socket) {
 	socket.emit('api', {
