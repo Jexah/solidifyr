@@ -3,133 +3,177 @@ var PORT = 3000;
 var express = require('express');
 var app = express();
 var io = require('socket.io').listen(app.listen(PORT));
-var types = require('./types/editor_types');
+var mongoose = require('mongoose');
+var models = require('./models/editor_models');
 
 var code = require('./code');
-var databaseCount = 0;
-var database = [];
-var projects = [];
 
-function New(typeAsString, parentId){
-	return new types[typeAsString](databaseCount++, parentId);
+mongoose.connect('mongodb://127.0.0.1/solidifyr');
+
+function New(typeAsString, obj, callback){
+	var newInstance = new models[typeAsString](obj);
+	newInstance.save(function (err) {
+		if(err) return console.error(err);
+		if(newInstance.parent === undefined){
+			callback(newInstance);
+		}else{
+			getModel(newInstance.parentType).findById(
+				newInstance.parent,
+				function(err, parentObj) {
+					if(err) return console.error(err);
+					parentObj.children[typeAsString].push(newInstance._id);
+					parentObj.markModified('children');
+					parentObj.save(function(err){
+						if(err) return console.error(err);
+						callback(newInstance);
+					});
+				}
+			);
+		}
+	});
 }
 
-function unlinkObj(id){
-	var obj = database[id];
-	var parent = database[obj.parent];
-	parent.children[obj.type].remove(id);
+function unlinkObj(id, type, callback){
+	// Unlink but do not delete
+	getModel(type).findById(id, function(err, doc){
+		getModel(doc.parentType).findById(doc.parent, function(err, parent){
+			parent.children[type].removeId(id);
+			parent.markModified('children');
+			parent.save(function(err){
+				if(err) return console.error(err);
+				callback(doc);
+			});
+		});
+	});
 }
 
-Array.prototype.remove = function() {
-    var what, a = arguments, L = a.length, ax;
-    while (L && this.length) {
-        what = a[--L];
-        while ((ax = this.indexOf(what)) !== -1) {
-            this.splice(ax, 1);
-        }
-    }
-    return this;
+Array.prototype.remove = function(obj) {
+	for(var i = 0; i < this.length; i++){
+		if(this[i] === obj){
+			this.splice(i, 1);
+		}
+	}
+	return this;
 };
 
-var rootProject = New('project');
-database.push(rootProject);
-rootProject.name = 'MyGame';
+Array.prototype.removeId = function(obj) {
+	for(var i = 0; i < this.length; i++){
+		if(this[i].toString() === obj.toString()){
+			this.splice(i, 1);
+		}
+	}
+	return this;
+};
 
-var newClass = New('class', rootProject.id);
-database.push(newClass);
-newClass.name = 'Player';
+String.prototype.capitalizeFirstLetter = function() {
+    return this.charAt(0).toUpperCase() + this.slice(1);
+}
 
+// Create placeholder data
+ /*
+	New('project', {
+		name: 'MyGame'
+	}, function(rootProject){
+		New('class', {
+			parent: rootProject._id,
+			parentType: rootProject.type,
+			name: 'Player'
+		}, function(newClass){
+			New('property', {
+				parent: newClass._id,
+				name: 'X Position',
+				parentType: newClass.type,
+				text: 'private int x = 0;'
+			}, function(newProperty){
+				New('property', {
+					parent: newClass._id,
+					name: 'Y Position',
+					parentType: newClass.type,
+					text: 'private int y = 0;'
+				}, function(newProperty1){
+					New('property', {
+						parent: newClass._id,
+						name: 'Speed',
+					parentType: newClass.type,
+						text: 'private int speed = 5;'
+					}, function(newProperty2){
+						New('property', {
+							parent: newClass._id,
+							parentType: newClass.type,
+							name: 'Direction Enum',
+							text: 	'private enum Direction = \n'+
+									'{\n'+
+									'	RIGHT,\n'+
+									'	UP,\n'+
+									'	LEFT,\n'+
+									'	DOWN\n'+
+									'}'
+						}, function(newProperty3){
+							New('method', {
+								parent: newClass._id,
+								parentType: newClass.type,
+								name: 'Move',
+								text: 	'public void move(Direction dir)\n'+
+										'	switch(dir)\n'+
+										'	{\n'+
+										'		case RIGHT:\n'+
+										'			this.x += this.speed;\n'+
+										'			break;\n'+
+										'		case UP:\n'+
+										'			this.y += this.speed;\n'+
+										'			break;\n'+
+										'		case LEFT:\n'+
+										'			this.x -= this.speed;\n'+
+										'			break;\n'+
+										'		case DOWN:\n'+
+										'			this.y -= this.speed;\n'+
+										'			break;\n'+
+										'		default:\n'+
+										'			break;\n'+
+										'	}\n'+
+										'}'
+							}, function(newMethod){
+								mongoose.model("Project").findOne(function(err, parentObj) {
+										if(err) return console.error(err);
+									}
+								);
+							});
+						});
+					});
+				});
+			});
+		});
+	});
+	// }
+// End place holder data */
 
-var newProperty = New('property', newClass.id);
-database.push(newProperty);
-newProperty.name = 'X Position';
-newProperty.text = 'private int x = 0;';
+function getModel(str){
+	return mongoose.model(str.capitalizeFirstLetter());
+}
 
-
-var newProperty2 = New('property', newClass.id);
-database.push(newProperty2);
-newProperty2.name = 'Y Position';
-newProperty2.text = 'private int y = 0;';
-
-
-var newProperty3 = New('property', newClass.id);
-database.push(newProperty3);
-newProperty3.name = 'Speed';
-newProperty3.text = 'private int speed = 5;';
-
-
-var newProperty4 = New('property', newClass.id);
-database.push(newProperty4);
-newProperty4.name = 'Direction Enum';
-newProperty4.text = 'private enum Direction = \n'+
-					'{\n'+
-					'	RIGHT,\n'+
-					'	UP,\n'+
-					'	LEFT,\n'+
-					'	DOWN\n'+
-					'}';
-
-var newMethod = New('method', newClass.id);
-database.push(newMethod);
-newMethod.name = 'Move';
-newMethod.text = 
-'public void move(Direction dir)\n'+
-'	switch(dir)\n'+
-'	{\n'+
-'		case RIGHT:\n'+
-'			this.x += this.speed;\n'+
-'			break;\n'+
-'		case UP:\n'+
-'			this.y += this.speed;\n'+
-'			break;\n'+
-'		case LEFT:\n'+
-'			this.x -= this.speed;\n'+
-'			break;\n'+
-'		case DOWN:\n'+
-'			this.y -= this.speed;\n'+
-'			break;\n'+
-'		default:\n'+
-'			break;\n'+
-'	}\n'+
-'}';
-
-
-
-projects.push(rootProject.id);
-database[0].addChild(newClass.id, 'class');
-database[1].addChild(newMethod.id, 'method');
-database[1].addChild(newProperty.id, 'property');
-database[1].addChild(newProperty2.id, 'property');
-database[1].addChild(newProperty3.id, 'property');
-database[1].addChild(newProperty4.id, 'property');
+function sendDatabase(socket){
+	for(var i in models){
+		if(!models.hasOwnProperty(i)) return;
+		getModel(i).find().lean().exec(function(err, doc) {
+			socket.emit('api', {
+				'action':'put',
+				'location':'database',
+				'value':doc
+			});
+		});
+	};
+}
 
 io.sockets.on('connection', function (socket) {
-	socket.emit('api', {
-		'action':'put',
-		'location':'database',
-		'value':database
-	});
+
+	sendDatabase(socket);
+	
 	socket.on('api', function (data) {
 		switch(data.location){
-			case 'types':
-				switch(data.action){
-					case 'get':
-						socket.emit('api', {
-							'action':'post',
-							'location':'types',
-							'value':types
-						});
-						break;
-				}
-				break;
 			case 'database':
 				switch(data.action){
 					case 'get':
-						socket.emit('api', {
-							'action':'put',
-							'location':'database',
-							'value':database
-						});
+						sendDatabase(socket);
 						break;
 				}
 				break;
@@ -143,37 +187,62 @@ io.sockets.on('connection', function (socket) {
 						break;
 					case 'put':
 						var value = data.value;
-						for(var p in value){
-							database[value.id][p] = value[p];
-						}
-						socket.broadcast.emit('api', {
-							'action':'put',
-							'value':database[data.value.id]
+						getModel(value.type).findById(value._id, function(err, doc){
+							for(var p in value){
+								if(!value.hasOwnProperty(p)) continue;
+								if(p !== 'name' && p !== 'text') continue;
+								if(err) return console.error(err);
+								doc[p] = value[p];
+								doc.markModified(p);
+							}
+							doc.save(function(err){
+								if(err) return console.error(err);
+								socket.broadcast.emit('api', {
+									'action':'put',
+									'value':doc
+								});
+							});
 						});
 						break;
+						
 					case 'post':
-						var parentId = data.value.parent;
-						var type = data.value.type;
-						var newObject = New(type, parentId);
-						database.push(newObject);
-						database[parentId].addChild(newObject.id, type);
-						io.emit('api', {
-							'action':'post',
-							'value':database[newObject.id]
-						});
+						if(data.value.parent){
+							getModel(data.value.parentType).findById(data.value.parent, function(err, doc){
+								var newObj = data.value;
+								newObj.parentType = doc.type;
+								New(data.value.type, newObj, function(newInstance){
+									console.log(data);
+									io.emit('api', {
+										'action':'post',
+										'value':newInstance
+									});
+								});
+							});
+						}else{
+							New(data.value.type, data.value, function(newInstance){
+								io.emit('api', {
+									'action':'post',
+									'value':newInstance
+								});
+							});
+						}
 						break;
+						
 					case 'delete':
-						unlinkObj(data.value.id);
-						console.log(data.value.id);
-						io.emit('api', {
-							'action':'delete',
-							'value':database[data.value.id]
+						unlinkObj(data.value.id, data.value.type, function(doc){
+							console.log(doc);
+							io.emit('api', {
+								'action':'delete',
+								'value':doc
+							});
 						});
 						break;
+						
 				}
 				break;
 		}
 	});
+		
 });
 
 app.set('view engine', 'jade');
