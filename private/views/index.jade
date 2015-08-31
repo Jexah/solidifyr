@@ -11,23 +11,24 @@ html(lang='en', ng-app='Solidifyr')
 		div.container(ng-controller='TextEditorController', id='TextEditor')
 			div.row
 				div.col-md-12
-					div.jumbotron.top-buffer(ng-repeat='project in database | filter: {type: "project"}')
-						input(style='width:100%;outline:none;background-color:#EEE;border-style:none;font-size:72px;', type='text', ng-model='project.name')
-						div(ng-repeat='class in project.children["class"]')
-							input(style='width:100%;outline:none;background-color:#EEE;border-style:none;font-size:36px;', type='text' ng-model='database[class].name')
-							div.top-buffer(ng-repeat='property in database[class].children["property"]')
-								input(style='width:90%;outline:none;background-color:#EEE;border-style:none;font-size:22px;', type='text', ng-model='database[property].name')
-								button(style='width:10%;float:right;', ng-click='delete(property);') Delete
+					//div(id='project', style='min-height:500px;min-width:500px;')
+					div.jumbotron.top-buffer(ng-repeat='projectId in projectArr')
+						input(placeholder='Project name', style='width:100%;outline:none;background-color:#EEE;border-style:none;font-size:72px;', type='text', ng-model='database[projectId].name')
+						div(ng-repeat='classId in database[projectId].children["class"]')
+							input(placeholder='Class name', style='width:100%;outline:none;background-color:#EEE;border-style:none;font-size:36px;', type='text' ng-model='database[classId].name')
+							div.top-buffer(ng-repeat='propertyId in database[classId].children["property"]')
+								input(placeholder='Property name', style='width:90%;outline:none;background-color:#EEE;border-style:none;font-size:22px;', type='text', ng-model='database[propertyId].name')
+								button(style='width:10%;float:right;', ng-click='delete(propertyId, "property");') Delete
 								div.well
-									div(ui-ace='{onLoad: aceLoaded, mode: "c_cpp"}', ng-model='database[property].text')
-							button(ng-click='create("property", class);') Create Property
+									div(ui-ace='{onLoad: aceLoaded, mode: "c_cpp"}', ng-model='database[propertyId].text')
+							button(ng-click='create("property", classId);') Create Property
 							hr(style='border-color:black;')
-							div.top-buffer(ng-repeat='method in database[class].children["method"]')
-								input(style='width:90%;outline:none;background-color:#EEE;border-style:none;font-size:22px;', type='text', ng-model='database[method].name')
-								button(style='width:10%;float:right;', ng-click='delete(method);') Delete
+							div.top-buffer(ng-repeat='methodId in database[classId].children["method"]')
+								input(placeholder='Method name', style='width:90%;outline:none;background-color:#EEE;border-style:none;font-size:22px;', type='text', ng-model='database[methodId].name')
+								button(style='width:10%;float:right;', ng-click='delete(methodId, "method");') Delete
 								div.well
-									div(style='padding:20px;', ui-ace='{onLoad: aceLoaded, mode: "c_cpp"}', ng-model='database[method].text')
-							button(ng-click='create("method", class);') Create Method
+									div(style='padding:20px;', ui-ace='{onLoad: aceLoaded, mode: "c_cpp"}', ng-model='database[methodId].text')
+							button(ng-click='create("method", classId);') Create Method
 
 
 
@@ -40,5 +41,7 @@ html(lang='en', ng-app='Solidifyr')
 		script(src='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js')
 		script(src='https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.0/ace.js')
 		script(src='https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.0/mode-c_cpp.js')
+		script(src='https://cdnjs.cloudflare.com/ajax/libs/cytoscape/2.4.6/cytoscape.min.js')
+			
 
 		script(src='js/main.min.js')
