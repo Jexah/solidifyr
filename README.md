@@ -31,7 +31,7 @@ Implement a wiki-style page for each node where any useful information can be st
 ---
 
 ### Build
-*This assumes you have nodejs, npm, and grunt installed.*
+*This assumes you have nodejs, npm, grunt, and mongodb installed.*
 
 Simply clone the package using:
 
@@ -44,8 +44,11 @@ Then change to the root directory of the project and update to install dependenc
 ---
 
 ### Run
-*This assumes you have nodejs, npm, and grunt installed.*
+*This assumes you have nodejs, npm, grunt, and mongodb installed.*
 
-Simply run using grunt:
+Start by opening your local mongodb server and specifying the database path:
+`$ mongodb --dbpath "./db"`
+
+Then just run the server using grunt:
 
 `$ grunt`
