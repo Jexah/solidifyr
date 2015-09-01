@@ -20,6 +20,14 @@ var Property = mongoose.model('Property', {
 	text: {
 		type: String,
 		default: ''
+	},
+	toDelete: {
+		type: Boolean,
+		default: false
+	},
+	deleted: {
+		type: Boolean,
+		default: false
 	}
 });
 

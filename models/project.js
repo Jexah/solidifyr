@@ -14,6 +14,14 @@ var Project = mongoose.model('Project', {
 		default: {
 			'class': [mongoose.Types.ObjectId]
 		}
+	},
+	toDelete: {
+		type: Boolean,
+		default: false
+	},
+	deleted: {
+		type: Boolean,
+		default: false
 	}
 });
 

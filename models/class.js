@@ -23,6 +23,14 @@ var Class = mongoose.model('Class', {
 			'property': [mongoose.Types.ObjectId],
 			'method': [mongoose.Types.ObjectId]
 		}
+	},
+	toDelete: {
+		type: Boolean,
+		default: false
+	},
+	deleted: {
+		type: Boolean,
+		default: false
 	}
 });
 
