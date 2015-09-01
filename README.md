@@ -28,6 +28,8 @@ Only publish the most recent code that passes all of the unit tests. This requir
 ### Secondary goals
 Implement a wiki-style page for each node where any useful information can be stored, such as details on how to use a function, or current known technical limitations or issues that explain why the function is built the way it is (seperate from "issues" that would list why a function isn't operating correctly). [Basically a nicer version of "summaries" in traditional IDEs]
 
+Git integration is something that would really strengthen the control users have over the software. Automatic commits on publish, and being able to revert to specific stable releases if an uncaught bug or "unreleased feature" is introduced, as well as access to the project development data that git provides, are all pretty great features.
+
 ---
 
 ### Build
