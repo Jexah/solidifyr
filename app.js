@@ -10,6 +10,8 @@ var code = require('./code');
 
 mongoose.connect('mongodb://127.0.0.1/solidifyr');
 
+var toDelete = {};
+
 function New(typeAsString, obj, callback){
 	var newInstance = new models[typeAsString](obj);
 	newInstance.save(function (err) {
@@ -17,9 +19,7 @@ function New(typeAsString, obj, callback){
 		if(newInstance.parent === undefined){
 			callback(newInstance);
 		}else{
-			getModel(newInstance.parentType).findById(
-				newInstance.parent,
-				function(err, parentObj) {
+			getById(newInstance.parentType, newInstance.parent, function(parentObj) {
 					if(err) return console.error(err);
 					parentObj.children[typeAsString].push(newInstance._id);
 					parentObj.markModified('children');
@@ -35,13 +35,18 @@ function New(typeAsString, obj, callback){
 
 function unlinkObj(id, type, callback){
 	// Unlink but do not delete
-	getModel(type).findById(id, function(err, doc){
-		getModel(doc.parentType).findById(doc.parent, function(err, parent){
+	getById(type, id, function(doc){
+		getById(doc.parentType, doc.parent, function(parent){
 			parent.children[type].removeId(id);
 			parent.markModified('children');
 			parent.save(function(err){
 				if(err) return console.error(err);
-				callback(doc);
+				doc.deleted = true;
+				doc.toDelete = false;
+				doc.save(function(err){
+					if(err) return console.error(err);
+					callback(doc);
+				})
 			});
 		});
 	});
@@ -151,6 +156,13 @@ function getModel(str){
 	return mongoose.model(str.capitalizeFirstLetter());
 }
 
+function getById(type, id, callback){
+	getModel(type).findById(id, function(err, doc){
+		if(err) return console.error(err);
+		callback(doc);
+	});
+}
+
 function sendDatabase(socket){
 	for(var i in models){
 		if(!models.hasOwnProperty(i)) return;
@@ -187,11 +199,10 @@ io.sockets.on('connection', function (socket) {
 						break;
 					case 'put':
 						var value = data.value;
-						getModel(value.type).findById(value._id, function(err, doc){
+						getById(value.type, value._id, function(doc){
 							for(var p in value){
 								if(!value.hasOwnProperty(p)) continue;
 								if(p !== 'name' && p !== 'text') continue;
-								if(err) return console.error(err);
 								doc[p] = value[p];
 								doc.markModified(p);
 							}
@@ -207,11 +218,10 @@ io.sockets.on('connection', function (socket) {
 						
 					case 'post':
 						if(data.value.parent){
-							getModel(data.value.parentType).findById(data.value.parent, function(err, doc){
+							getById(data.value.parentType, data.value.parent, function(doc){
 								var newObj = data.value;
 								newObj.parentType = doc.type;
 								New(data.value.type, newObj, function(newInstance){
-									console.log(data);
 									io.emit('api', {
 										'action':'post',
 										'value':newInstance
@@ -230,10 +240,47 @@ io.sockets.on('connection', function (socket) {
 						
 					case 'delete':
 						unlinkObj(data.value.id, data.value.type, function(doc){
-							console.log(doc);
 							io.emit('api', {
 								'action':'delete',
 								'value':doc
+							});
+						});
+						break;
+						
+					case 'requestDelete':
+						var _id = data.value.id;
+						var _type = data.value.type;
+						getById(data.value.type, data.value.id, function(doc){
+							doc.toDelete = true;
+							doc.save(function(err){
+								if(err) return console.error(err);
+								toDelete[data.value.id] = setTimeout(function(){
+									unlinkObj(_id, _type, function(doc){
+										io.emit('api', {
+											'action':'delete',
+											'value':doc
+										});
+										delete toDelete[doc._id];
+									});
+								}, 15000);
+								io.emit('api', {
+									'action':'put',
+									'value':doc
+								});
+							});
+						});
+						break;
+						
+					case 'undoDelete':
+						clearTimeout(toDelete[data.value.id]);
+						getById(data.value.type, data.value.id, function(doc){
+							doc.toDelete = false;
+							doc.save(function(err){
+								if(err) return console.error(err);
+								io.emit('api', {
+									'action':'put',
+									'value':doc
+								});
 							});
 						});
 						break;
