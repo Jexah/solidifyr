@@ -13,7 +13,8 @@ app.controller('TextEditorController', function ($scope) {
 			maxLines: Infinity,
 			showPrintMargin: false
 		});
-		editor.renderer.setScrollMargin(20, 20, 20, 20);
+		var margin = editor.container.hasAttribute('small') ? 7 : 20;
+		editor.renderer.setScrollMargin(margin, margin, margin, margin);
 		editor.renderer.setPadding(20);
 		editor.container.style.lineHeight = '20px';
 		editor.container.style.fontSize = '16px';
@@ -42,7 +43,17 @@ app.controller('TextEditorController', function ($scope) {
 
 	$scope.delete = function(id, type){
 		socket.emit('api', {
-			'action':'delete',
+			'action':'requestDelete',
+			'value':{
+				'id': id,
+				'type':type
+			}
+		});
+	};
+
+	$scope.undoDelete = function(id, type){
+		socket.emit('api', {
+			'action':'undoDelete',
 			'value':{
 				'id': id,
 				'type':type
