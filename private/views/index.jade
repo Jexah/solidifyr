@@ -18,17 +18,17 @@ html(lang='en', ng-app='Solidifyr')
 							input(placeholder='Class name', style='width:100%;outline:none;background-color:#EEE;border-style:none;font-size:36px;', type='text' ng-model='database[classId].name')
 							div.top-buffer(ng-repeat='propertyId in database[classId].children["property"]')
 								input(placeholder='Property name', style='width:90%;outline:none;background-color:#EEE;border-style:none;font-size:22px;', type='text', ng-model='database[propertyId].name')
-								button(style='width:10%;float:right;', ng-click='delete(propertyId, "property");') Delete
-								div.well
-									div(ui-ace='{onLoad: aceLoaded, mode: "c_cpp"}', ng-model='database[propertyId].text')
-							button(ng-click='create("property", classId);') Create Property
+								button(ng-if='!database[propertyId].toDelete', style='width:10%;float:right;', ng-click='delete(propertyId, "property");') Delete
+								button(ng-if='database[propertyId].toDelete', style='width:10%;float:right;', ng-click='undoDelete(propertyId, "property");') Undo
+								div.shadow(small, ng-if='!database[propertyId].toDelete', ui-ace='{onLoad: aceLoaded, mode: "c_cpp"}', ng-model='database[propertyId].text')
+							button(style='margin-top:20px;', ng-click='create("property", classId);') Create Property
 							hr(style='border-color:black;')
 							div.top-buffer(ng-repeat='methodId in database[classId].children["method"]')
 								input(placeholder='Method name', style='width:90%;outline:none;background-color:#EEE;border-style:none;font-size:22px;', type='text', ng-model='database[methodId].name')
-								button(style='width:10%;float:right;', ng-click='delete(methodId, "method");') Delete
-								div.well
-									div(style='padding:20px;', ui-ace='{onLoad: aceLoaded, mode: "c_cpp"}', ng-model='database[methodId].text')
-							button(ng-click='create("method", classId);') Create Method
+								button(ng-if='!database[methodId].toDelete', style='width:10%;float:right;', ng-click='delete(methodId, "method");') Delete
+								button(ng-if='database[methodId].toDelete', style='width:10%;float:right;', ng-click='undoDelete(methodId, "method");') Undo
+								div.shadow(ng-if='!database[methodId].toDelete', ui-ace='{onLoad: aceLoaded, mode: "c_cpp"}', ng-model='database[methodId].text')
+							button(style='margin-top:20px;', ng-click='create("method", classId);') Create Method
 
 
 
