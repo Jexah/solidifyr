@@ -8,6 +8,7 @@
     "url": "https://github.com/jexah/solidifyr.git"
   },
   "dependencies": {
+    "bluebird": "^2.9.34",
     "express": "^4.13.3",
     "jade": "^1.11.0",
     "mongoose": "^4.1.3",
