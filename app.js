@@ -4,6 +4,8 @@ var express = require('express');
 var app = express();
 var io = require('socket.io').listen(app.listen(PORT));
 var mongoose = require('mongoose');
+var Promise = require('bluebird');
+Promise.promisifyAll(mongoose);
 var models = require('./models/editor_models');
 
 var code = require('./code');
@@ -12,166 +14,71 @@ mongoose.connect('mongodb://127.0.0.1/solidifyr');
 
 var toDelete = {};
 
-function New(typeAsString, obj, callback){
+var New = Promise.coroutine(function* (typeAsString, obj){
 	var newInstance = new models[typeAsString](obj);
-	newInstance.save(function (err) {
-		if(err) return console.error(err);
-		if(newInstance.parent === undefined){
-			callback(newInstance);
-		}else{
-			getById(newInstance.parentType, newInstance.parent, function(parentObj) {
-					if(err) return console.error(err);
-					parentObj.children[typeAsString].push(newInstance._id);
-					parentObj.markModified('children');
-					parentObj.save(function(err){
-						if(err) return console.error(err);
-						callback(newInstance);
-					});
-				}
-			);
-		}
-	});
-}
 
-function unlinkObj(id, type, callback){
+	yield newInstance.saveAsync()
+	.then(function(err){
+		if(newInstance.parent !== undefined){
+			return getById(newInstance.parentType, newInstance.parent);
+		}
+	})
+	.then(function(parentObj){
+		parentObj.children[typeAsString].push(newInstance._id);
+		parentObj.markModified('children');
+		return parentObj.saveAsync();
+	})
+	.catch(function(err){
+		console.error(err);
+	});
+	return newInstance;
+});
+
+var unlinkObj = Promise.coroutine(function* (type, id) {
+
 	// Unlink but do not delete
-	getById(type, id, function(doc){
-		getById(doc.parentType, doc.parent, function(parent){
-			parent.children[type].removeId(id);
-			parent.markModified('children');
-			parent.save(function(err){
-				if(err) return console.error(err);
-				doc.deleted = true;
-				doc.toDelete = false;
-				doc.save(function(err){
-					if(err) return console.error(err);
-					callback(doc);
-				})
-			});
-		});
+	var targetDoc;
+
+	return yield getById(type, id)
+	.then(function(doc){
+		targetDoc = doc;
+		return getById(targetDoc.parentType, targetDoc.parent);
+	})
+	.then(function(parent){
+		parent.children[type].removeId(id);
+		parent.markModified('children');
+		return parent.save()
+	})
+	.then(function(){
+		targetDoc.deleted = true;
+		targetDoc.toDelete = false;
+		return targetDoc.saveAsync();
+	})
+	.catch(function(err){
+		console.error(err);
 	});
-}
-
-Array.prototype.remove = function(obj) {
-	for(var i = 0; i < this.length; i++){
-		if(this[i] === obj){
-			this.splice(i, 1);
-		}
-	}
-	return this;
-};
-
-Array.prototype.removeId = function(obj) {
-	for(var i = 0; i < this.length; i++){
-		if(this[i].toString() === obj.toString()){
-			this.splice(i, 1);
-		}
-	}
-	return this;
-};
-
-String.prototype.capitalizeFirstLetter = function() {
-    return this.charAt(0).toUpperCase() + this.slice(1);
-}
-
-// Create placeholder data
- /*
-	New('project', {
-		name: 'MyGame'
-	}, function(rootProject){
-		New('class', {
-			parent: rootProject._id,
-			parentType: rootProject.type,
-			name: 'Player'
-		}, function(newClass){
-			New('property', {
-				parent: newClass._id,
-				name: 'X Position',
-				parentType: newClass.type,
-				text: 'private int x = 0;'
-			}, function(newProperty){
-				New('property', {
-					parent: newClass._id,
-					name: 'Y Position',
-					parentType: newClass.type,
-					text: 'private int y = 0;'
-				}, function(newProperty1){
-					New('property', {
-						parent: newClass._id,
-						name: 'Speed',
-					parentType: newClass.type,
-						text: 'private int speed = 5;'
-					}, function(newProperty2){
-						New('property', {
-							parent: newClass._id,
-							parentType: newClass.type,
-							name: 'Direction Enum',
-							text: 	'private enum Direction = \n'+
-									'{\n'+
-									'	RIGHT,\n'+
-									'	UP,\n'+
-									'	LEFT,\n'+
-									'	DOWN\n'+
-									'}'
-						}, function(newProperty3){
-							New('method', {
-								parent: newClass._id,
-								parentType: newClass.type,
-								name: 'Move',
-								text: 	'public void move(Direction dir)\n'+
-										'	switch(dir)\n'+
-										'	{\n'+
-										'		case RIGHT:\n'+
-										'			this.x += this.speed;\n'+
-										'			break;\n'+
-										'		case UP:\n'+
-										'			this.y += this.speed;\n'+
-										'			break;\n'+
-										'		case LEFT:\n'+
-										'			this.x -= this.speed;\n'+
-										'			break;\n'+
-										'		case DOWN:\n'+
-										'			this.y -= this.speed;\n'+
-										'			break;\n'+
-										'		default:\n'+
-										'			break;\n'+
-										'	}\n'+
-										'}'
-							}, function(newMethod){
-								mongoose.model("Project").findOne(function(err, parentObj) {
-										if(err) return console.error(err);
-									}
-								);
-							});
-						});
-					});
-				});
-			});
-		});
-	});
-	// }
-// End place holder data */
-
+});
 function getModel(str){
 	return mongoose.model(str.capitalizeFirstLetter());
 }
 
-function getById(type, id, callback){
-	getModel(type).findById(id, function(err, doc){
-		if(err) return console.error(err);
-		callback(doc);
-	});
-}
+var getById = Promise.coroutine(function* (type, id) {
+	return getModel(type).findByIdAsync(id);
+});
 
 function sendDatabase(socket){
 	for(var i in models){
 		if(!models.hasOwnProperty(i)) return;
-		getModel(i).find().lean().exec(function(err, doc) {
+		getModel(i).find().lean().execAsync()
+		.then(function(doc) {
 			socket.emit('api', {
 				'action':'put',
 				'location':'database',
 				'value':doc
 			});
+		})
+		.catch(function(err){
+			console.error(err);
 		});
 	};
 }
@@ -199,7 +106,8 @@ io.sockets.on('connection', function (socket) {
 						break;
 					case 'put':
 						var value = data.value;
-						getById(value.type, value._id, function(doc){
+						getById(value.type, value._id)
+						.then(function(doc){
 							for(var p in value){
 								if(!value.hasOwnProperty(p)) continue;
 								if(p !== 'name' && p !== 'text') continue;
@@ -218,18 +126,21 @@ io.sockets.on('connection', function (socket) {
 						
 					case 'post':
 						if(data.value.parent){
-							getById(data.value.parentType, data.value.parent, function(doc){
+							getById(data.value.parentType, data.value.parent)
+							.then(function(parentInstance){
 								var newObj = data.value;
-								newObj.parentType = doc.type;
-								New(data.value.type, newObj, function(newInstance){
-									io.emit('api', {
-										'action':'post',
-										'value':newInstance
-									});
+								newObj.parentType = parentInstance.type;
+								return New(data.value.type, newObj)
+							})
+							.then(function(newInstance){
+								io.emit('api', {
+									'action':'post',
+									'value':newInstance
 								});
 							});
 						}else{
-							New(data.value.type, data.value, function(newInstance){
+							New(data.value.type, data.value)
+							.then(function(newInstance){
 								io.emit('api', {
 									'action':'post',
 									'value':newInstance
@@ -239,7 +150,8 @@ io.sockets.on('connection', function (socket) {
 						break;
 						
 					case 'delete':
-						unlinkObj(data.value.id, data.value.type, function(doc){
+						unlinkObj(data.value.type, data.value.id)
+						.then(function(doc){
 							io.emit('api', {
 								'action':'delete',
 								'value':doc
@@ -248,40 +160,53 @@ io.sockets.on('connection', function (socket) {
 						break;
 						
 					case 'requestDelete':
-						var _id = data.value.id;
-						var _type = data.value.type;
-						getById(data.value.type, data.value.id, function(doc){
+						var id = data.value.id;
+						var type = data.value.type;
+
+						var elementToDelete;
+
+						getById(type, id)
+						.then(function(doc){
+							elementToDelete = doc;
 							doc.toDelete = true;
-							doc.save(function(err){
-								if(err) return console.error(err);
-								toDelete[data.value.id] = setTimeout(function(){
-									unlinkObj(_id, _type, function(doc){
-										io.emit('api', {
-											'action':'delete',
-											'value':doc
-										});
-										delete toDelete[doc._id];
+							return doc.saveAsync();
+						})
+						.then(function(){
+							toDelete[id] = setTimeout(function(){
+								unlinkObj(type, id)
+								.then(function(doc){
+									io.emit('api', {
+										'action':'delete',
+										'value':doc[0]
 									});
-								}, 15000);
-								io.emit('api', {
-									'action':'put',
-									'value':doc
+									delete toDelete[doc[0].id];
 								});
+							}, 1500);
+							io.emit('api', {
+								'action':'put',
+								'value':elementToDelete
 							});
+						})
+						.catch(function(err){
+							console.error(err);
 						});
 						break;
 						
 					case 'undoDelete':
 						clearTimeout(toDelete[data.value.id]);
-						getById(data.value.type, data.value.id, function(doc){
+						getById(data.value.type, data.value.id)
+						.then(function(doc){
 							doc.toDelete = false;
-							doc.save(function(err){
-								if(err) return console.error(err);
-								io.emit('api', {
-									'action':'put',
-									'value':doc
-								});
+							return doc.save();
+						})
+						.then(function(){
+							io.emit('api', {
+								'action':'put',
+								'value':doc
 							});
+						})
+						.catch(function(err){
+							console.error(err);
 						});
 						break;
 						
@@ -321,3 +246,29 @@ app.use('/code', code);
 
 
 
+
+// Prototypes //
+
+Array.prototype.remove = function(obj) {
+	for(var i = 0; i < this.length; i++){
+		if(this[i] === obj){
+			this.splice(i, 1);
+		}
+	}
+	return this;
+};
+
+Array.prototype.removeId = function(obj) {
+	for(var i = 0; i < this.length; i++){
+		if(this[i].toString() === obj.toString()){
+			this.splice(i, 1);
+		}
+	}
+	return this;
+};
+
+String.prototype.capitalizeFirstLetter = function() {
+    return this.charAt(0).toUpperCase() + this.slice(1);
+}
+
+// End Prototypes //
