@@ -36,7 +36,10 @@ module.exports = function(grunt) {
     },
     nodemon: {
       dev:{
-        script: 'app.js'
+        script: 'app.js',
+        options: {
+          nodeArgs: ['--harmony-generators']
+        }
       }
     }
   });
