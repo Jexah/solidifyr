@@ -9,14 +9,56 @@ var mongoose = require('mongoose');
 var Promise = require('bluebird');
 var fs = require('fs');
 Promise.promisifyAll(mongoose);
+var passport = require('passport');
+var GitHubStrategy = require('passport-github2').Strategy;
+var cookieParser = require('cookie-parser');
+var bodyParser = require('body-parser');
+var session = require('express-session');
+var MongoStore = require('connect-mongo')(session);
+var methodOverride = require('method-override');
 var models = require('./models/editor_models');
+var User = require('./models/user');
+
 var GITHUB_CLIENT_ID = fs.readFileSync(__dirname + '/security/github_client_id.txt', 'utf8');
 var GITHUB_CLIENT_SECRET = fs.readFileSync(__dirname + '/security/github_client_secret.txt', 'utf8');
 var SESSION_SECRET = fs.readFileSync(__dirname + '/security/session_secret.txt', 'utf8');
 
+passport.serializeUser(function(user, done){
+	User.findAsync({username: user.username})
+	.then(function(doc){
+		done(null, doc);
+	});
+});
+
+passport.deserializeUser(function(obj, done){
+	User.findByIdAsync(obj._id)
+	.then(function(doc){
+		done(null, doc);
+	});
+});
+
+passport.use(new GitHubStrategy({
+	clientID: GITHUB_CLIENT_ID,
+	clientSecret: GITHUB_CLIENT_SECRET,
+	callbackURL: "http://127.0.0.1:3000/auth/github/callback"
+},
+	function(accessToken, refreshToken, profile, done) {
+		// asynchronous verification, for effect...
+		process.nextTick(function(){
+			//Users.find();
+			// To keep the example simple, the user's GitHub profile is returned to
+			// represent the logged-in user.  In a typical application, you would want
+			// to associate the GitHub account with a user record in your database,
+			// and return that user instead.
+			return done(null, profile);
+		});
+	}
+));
+
 var code = require('./code');
 
 mongoose.connect('mongodb://127.0.0.1/solidifyr');
+var sessionStore = new MongoStore({ mongooseConnection: mongoose.connection });
 
 var toDelete = {};
 
@@ -64,6 +106,7 @@ var unlinkObj = Promise.coroutine(function* (type, id) {
 		console.error(err);
 	});
 });
+
 function getModel(str){
 	return mongoose.model(str.capitalizeFirstLetter());
 }
@@ -92,7 +135,6 @@ function sendDatabase(socket){
 io.sockets.on('connection', function (socket) {
 
 	sendDatabase(socket);
-	
 	socket.on('api', function (data) {
 		switch(data.location){
 			case 'database':
@@ -223,14 +265,89 @@ io.sockets.on('connection', function (socket) {
 		
 });
 
+
+//app.use(express.logger());
+app.use(cookieParser());
+app.use(bodyParser.urlencoded({
+	extended: true
+}));
+app.use(bodyParser.json());
+app.use(methodOverride());
+app.use(session({
+    secret: SESSION_SECRET,
+    name: 'solidifyr',
+    resave: true,
+    store: sessionStore,
+    saveUninitialized: true
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
 app.set('view engine', 'jade');
 
 app.use(express.static('public'));
 
+app.get('/account', ensureAuthenticated, function(req, res){
+	res.render('account', { user: req.user });
+});
+
+app.get('/login', function(req, res){
+	res.send('');
+});
+
+app.get('/auth/github',
+	passport.authenticate('github'),
+	function(req, res){
+		// The request will be redirected to GitHub for authentication, so this
+		// function will not be called.
+	}
+);
+
+// GET /auth/github/callback
+//   Use passport.authenticate() as route middleware to authenticate the
+//   request.  If authentication fails, the user will be redirected back to the
+//   login page.  Otherwise, the primary route function function will be called,
+//   which, in this example, will redirect the user to the home page.
+app.get('/auth/github/callback', 
+	passport.authenticate('github', { failureRedirect: '/login' }),
+	function(req, res) {
+		var usr;
+		User.findAsync({username: req.username})
+		.then(function(doc){
+			if(doc.length === 0){
+				var newUser = new User({
+					username: req.user.username,
+					displayName: req.user.displayName
+				});
+				return newUser.saveAsync();
+			}else{
+				usr = doc;
+			}
+		})
+		.then(function(newUser){
+			// Do something with new user
+			usr = usr || newUser;
+		});
+		res.redirect('/');
+	}
+);
+
+app.get('/logout', function(req, res){
+	req.logout();
+	res.redirect('/');
+});
+
+function ensureAuthenticated(req, res, next) {
+	if (req.isAuthenticated()) { return next(); }
+	res.redirect('/login')
+}
+
 // respond with "Hello World!" on the homepage
 app.get('/', function (req, res) {
-  res.render(__dirname + '/private/views/index', { title: 'Hey', message: 'Hello there!'});
-  //res.sendFile('C:\\Users\\Jexah\\Documents\\editor_project\\public\\views\\index.html');
+	res.render(__dirname + '/private/views/index', {
+		user: req.user
+	});
 });
 
 // accept POST request on the homepage
@@ -248,3 +365,4 @@ app.delete('/user', function (req, res) {
   res.send('Got a DELETE request at /user');
 });
 
+app.use('/code', code);
