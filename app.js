@@ -167,17 +167,32 @@ io.sockets.on('connection', function (socket) {
 						.then(function(doc){
 							for(var p in value){
 								if(!value.hasOwnProperty(p)) continue;
-								if(p !== 'name' && p !== 'text') continue;
-								doc[p] = value[p];
-								doc.markModified(p);
+								if(p === 'currentlyEditing'){
+									doc.currentlyEditing = socket.request.user._id;
+									User.findByIdAsync(socket.request.user._id)
+									.then(function(usr){
+										usr.currentlyEditing.push(data.value._id);
+										doc.markModified('currentlyEditing');
+									})
+									.catch(function(err){
+										console.error(err);
+									});
+								}
+								if(p === 'name' || p === 'text'){
+									doc[p] = value[p];
+									doc.markModified(p);
+								}
 							}
-							doc.save(function(err){
-								if(err) return console.error(err);
-								socket.broadcast.emit('api', {
-									'action':'put',
-									'value':doc
-								});
+							return doc.saveAsync();
+						})
+						.then(function(doc){
+							socket.broadcast.emit('api', {
+								'action':'put',
+								'value':doc[0]
 							});
+						})
+						.catch(function(err){
+							console.error(err);
 						});
 						break;
 						
