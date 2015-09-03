@@ -17,6 +17,10 @@ var Class = mongoose.model('Class', {
 		type: String,
 		default: ''
 	},
+	text: {
+		type: String,
+		default: ''
+	},
 	children: {
 		type: mongoose.Schema.Types.Mixed,
 		default: {
@@ -31,6 +35,10 @@ var Class = mongoose.model('Class', {
 	deleted: {
 		type: Boolean,
 		default: false
+	},
+	currentlyEditing: {
+		type: mongoose.Schema.Types.ObjectId,
+		default: null
 	}
 });
 
