@@ -6,6 +6,8 @@ app.controller('TextEditorController', function ($scope) {
 	$scope.database = {};
 	$scope.projectArr = [];
 
+	$scope.myId;
+
 	var watching = true;
 
 	$scope.aceLoaded = function(editor) {
@@ -18,6 +20,9 @@ app.controller('TextEditorController', function ($scope) {
 		editor.renderer.setPadding(20);
 		editor.container.style.lineHeight = '20px';
 		editor.container.style.fontSize = '16px';
+		editor.on('focus', function(){
+			beginEditing(editor.container.getAttribute('name').split('-')[0]);
+		});
 	};
 
 	function updateProjectArr(){
@@ -30,33 +35,43 @@ app.controller('TextEditorController', function ($scope) {
 		}
 	}
 
+	function beginEditing(id){
+		var toSend = $scope.database[id];
+		$scope.database[id].currentlyEditing = myId;
+		socket.emit('api', {
+			action: 'put',
+			value: $scope.database[id]
+		});
+		console.log($scope.database[id]);
+	}
+
 	$scope.create = function(type, parentId){
 		socket.emit('api', {
-			'action':'post',
-			'value':{
-				'type': type,
-				'parent': parentId,
-				'parentType': $scope.database[parentId].type
+			action: 'post',
+			value: {
+				type: type,
+				parent: parentId,
+				parentType: $scope.database[parentId].type
 			}
 		});
 	};
 
 	$scope.delete = function(id, type){
 		socket.emit('api', {
-			'action':'requestDelete',
-			'value':{
-				'id': id,
-				'type':type
+			action: 'requestDelete',
+			value: {
+				id: id,
+				type:type
 			}
 		});
 	};
 
 	$scope.undoDelete = function(id, type){
 		socket.emit('api', {
-			'action':'undoDelete',
-			'value':{
-				'id': id,
-				'type':type
+			action: 'undoDelete',
+			value: {
+				id: id,
+				type: type
 			}
 		});
 	};
@@ -65,8 +80,8 @@ app.controller('TextEditorController', function ($scope) {
 		$scope.$watch('database["' + id + '"]', function() {
 			if(watching){
 				socket.emit('api', {
-					'action':'put',
-					'value':$scope.database[id]
+					action: 'put',
+					value: $scope.database[id]
 				});
 			}
 	 	}, true);
@@ -96,6 +111,7 @@ app.controller('TextEditorController', function ($scope) {
 						updateProjectArr();
 						$scope.$apply();
 						watching = true;
+						console.log($scope.database[data.value._id]);
 						break;
 					case 'post':
 						var value = data.value;
@@ -112,6 +128,9 @@ app.controller('TextEditorController', function ($scope) {
 						unlinkObj(data.value);
 						$scope.$apply();
 						watching = true;
+						break;
+					case 'userId':
+						myId = data.value;
 						break;
 				}
 		}
