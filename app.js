@@ -16,6 +16,7 @@ var bodyParser = require('body-parser');
 var session = require('express-session');
 var MongoStore = require('connect-mongo')(session);
 var methodOverride = require('method-override');
+var passportSocketIo = require('passport.socketio');
 var models = require('./models/editor_models');
 var User = require('./models/user');
 
@@ -135,6 +136,14 @@ function sendDatabase(socket){
 io.sockets.on('connection', function (socket) {
 
 	sendDatabase(socket);
+
+	if(socket.request.user){
+		socket.emit('api', {
+			action: 'userId',
+			value: socket.request.user._id
+		});
+	}
+
 	socket.on('api', function (data) {
 		switch(data.location){
 			case 'database':
@@ -279,6 +288,14 @@ app.use(session({
     resave: true,
     store: sessionStore,
     saveUninitialized: true
+}));
+
+io.use(passportSocketIo.authorize({
+	cookieParser: cookieParser,     
+	key: 'solidifyr',
+	secret: SESSION_SECRET,
+	store: sessionStore,
+	passport: passport
 }));
 
 app.use(passport.initialize());
