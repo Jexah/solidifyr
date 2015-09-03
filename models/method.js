@@ -28,6 +28,10 @@ var Method = mongoose.model('Method', {
 	deleted: {
 		type: Boolean,
 		default: false
+	},
+	currentlyEditing: {
+		type: mongoose.Schema.Types.ObjectId,
+		default: null
 	}
 });
 
