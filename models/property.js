@@ -28,6 +28,10 @@ var Property = mongoose.model('Property', {
 	deleted: {
 		type: Boolean,
 		default: false
+	},
+	currentlyEditing: {
+		type: mongoose.Schema.Types.ObjectId,
+		default: null
 	}
 });
 
