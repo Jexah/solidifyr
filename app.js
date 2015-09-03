@@ -7,8 +7,12 @@ var app = express();
 var io = require('socket.io').listen(app.listen(PORT));
 var mongoose = require('mongoose');
 var Promise = require('bluebird');
+var fs = require('fs');
 Promise.promisifyAll(mongoose);
 var models = require('./models/editor_models');
+var GITHUB_CLIENT_ID = fs.readFileSync(__dirname + '/security/github_client_id.txt', 'utf8');
+var GITHUB_CLIENT_SECRET = fs.readFileSync(__dirname + '/security/github_client_secret.txt', 'utf8');
+var SESSION_SECRET = fs.readFileSync(__dirname + '/security/session_secret.txt', 'utf8');
 
 var code = require('./code');
 
